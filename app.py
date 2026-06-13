@@ -8,7 +8,7 @@ from sklearn.metrics.pairwise import cosine_similarity
 from collections import Counter
 
 # -----------------------------
-# PAGE CONFIG (PREMIUM SaaS)
+# PAGE CONFIG
 # -----------------------------
 st.set_page_config(
     page_title="HireLens AI | ATS Intelligence",
@@ -17,38 +17,32 @@ st.set_page_config(
 )
 
 # -----------------------------
-# PREMIUM CLEAN UI THEME
+# PREMIUM UI
 # -----------------------------
 st.markdown("""
 <style>
 
-/* background */
 .stApp {
-    background-color: #f6f7fb;
+    background-color: #f8f9fc;
     font-family: 'Segoe UI', sans-serif;
 }
 
-/* title */
 h1 {
     text-align: center;
     color: #111827;
     font-weight: 800;
 }
 
-/* cards */
-.block {
+[data-testid="metric-container"] {
     background: white;
-    padding: 18px;
     border-radius: 14px;
-    box-shadow: 0px 2px 10px rgba(0,0,0,0.06);
+    padding: 15px;
+    box-shadow: 0px 2px 10px rgba(0,0,0,0.08);
 }
 
-/* metric boxes */
-[data-testid="metric-container"] {
-    background-color: white;
-    border-radius: 12px;
-    padding: 10px;
-    box-shadow: 0px 1px 6px rgba(0,0,0,0.08);
+.stTabs [data-baseweb="tab"] {
+    font-size: 16px;
+    font-weight: 600;
 }
 
 </style>
@@ -70,64 +64,223 @@ st.title("💼 HireLens AI – Premium ATS Intelligence Platform")
 st.write("Executive-level Resume vs Job Description Analysis")
 
 # -----------------------------
-# INPUT
+# INPUTS
 # -----------------------------
-uploaded_file = st.file_uploader("Upload Resume (PDF)", type=["pdf"])
-job_description = st.text_area("Paste Job Description")
+uploaded_file = st.file_uploader(
+    "Upload Resume (PDF)",
+    type=["pdf"]
+)
+
+job_description = st.text_area(
+    "Paste Job Description",
+    height=250
+)
 
 run = st.button("Run ATS Analysis")
 
 # -----------------------------
-# FUNCTIONS
+# PDF EXTRACTION
 # -----------------------------
 def extract_text(pdf):
+
     text = ""
-    with pdfplumber.open(pdf) as f:
-        for page in f.pages:
+
+    with pdfplumber.open(pdf) as pdf_file:
+
+        for page in pdf_file.pages:
+
             text += page.extract_text() or ""
-    return text
 
-def tokenize(text):
-    return re.findall(r'\b\w+\b', text.lower())
+    return text.lower()
 
 # -----------------------------
-# SKILL CLASSIFICATION
+# SKILLS DATABASE
 # -----------------------------
-def categorize(words):
-    tech = {"python","java","sql","aws","docker","git","linux","api"}
-    ml = {"machine","learning","deep","neural","nlp","pandas","numpy","tensorflow","pytorch","sklearn"}
-    soft = {"communication","leadership","team","management"}
+SKILLS_DB = [
 
-    counts = Counter()
+    # Programming
+    "python",
+    "java",
+    "c++",
+    "javascript",
+    "typescript",
+    "sql",
 
-    for w in words:
-        if w in tech:
-            counts["Technical"] += 1
-        elif w in ml:
-            counts["AI/ML"] += 1
-        elif w in soft:
-            counts["Soft Skills"] += 1
+    # Data
+    "pandas",
+    "numpy",
+    "matplotlib",
+    "seaborn",
+    "scipy",
 
-    return counts
+    # ML
+    "machine learning",
+    "deep learning",
+    "neural networks",
+    "tensorflow",
+    "keras",
+    "pytorch",
+    "scikit-learn",
+    "xgboost",
+    "lightgbm",
+    "catboost",
+
+    # NLP / LLM
+    "nlp",
+    "transformers",
+    "hugging face",
+    "langchain",
+    "rag",
+    "llm",
+    "large language models",
+    "prompt engineering",
+    "faiss",
+
+    # Cloud
+    "aws",
+    "azure",
+    "gcp",
+
+    # Deployment
+    "docker",
+    "kubernetes",
+    "streamlit",
+    "flask",
+    "fastapi",
+
+    # Databases
+    "mysql",
+    "postgresql",
+    "mongodb",
+    "oracle",
+
+    # MLOps
+    "mlflow",
+    "airflow",
+    "ci/cd",
+
+    # Advanced AI
+    "distributed training",
+    "gpu optimization",
+    "quantization",
+    "model compression",
+    "inference optimization",
+    "kv cache",
+    "batching",
+    "scheduling",
+    "observability",
+    "performance profiling",
+    "data pipelines",
+    "multimodal llm"
+]
 
 # -----------------------------
-# AI FEEDBACK (RECRUITER STYLE)
+# EXTRACT SKILLS
 # -----------------------------
-def recruiter_feedback(score, missing):
-    if score > 0.8:
-        return "Strong candidate. Recommend immediate interview shortlist."
-    elif score > 0.6:
-        return f"Good candidate. Improve missing areas: {', '.join(list(missing)[:5])}"
+def extract_skills(text):
+
+    found = []
+
+    text = text.lower()
+
+    for skill in SKILLS_DB:
+
+        if skill in text:
+
+            found.append(skill)
+
+    return sorted(list(set(found)))
+
+# -----------------------------
+# SKILL CATEGORIES
+# -----------------------------
+def categorize_skills(skills):
+
+    categories = {
+
+        "Programming": [
+            "python","java","c++","javascript","typescript","sql"
+        ],
+
+        "AI/ML": [
+            "machine learning",
+            "deep learning",
+            "tensorflow",
+            "keras",
+            "pytorch",
+            "scikit-learn",
+            "llm",
+            "rag",
+            "transformers",
+            "langchain",
+            "faiss"
+        ],
+
+        "Cloud": [
+            "aws","azure","gcp"
+        ],
+
+        "MLOps": [
+            "docker",
+            "kubernetes",
+            "mlflow",
+            "airflow"
+        ],
+
+        "Database": [
+            "mysql",
+            "postgresql",
+            "mongodb",
+            "oracle"
+        ]
+    }
+
+    result = Counter()
+
+    for skill in skills:
+
+        for category, values in categories.items():
+
+            if skill in values:
+
+                result[category] += 1
+
+    return result
+
+# -----------------------------
+# RECRUITER FEEDBACK
+# -----------------------------
+def recruiter_feedback(score, missing_skills):
+
+    if score >= 0.80:
+        return "Strong alignment with the role. Candidate is suitable for immediate interview consideration."
+
+    elif score >= 0.60:
+        return (
+            "Good alignment. Consider strengthening experience in: "
+            + ", ".join(list(missing_skills)[:5])
+        )
+
     else:
-        return f"Candidate not aligned. Critical gaps: {', '.join(list(missing)[:5])}"
+        return (
+            "Significant skill gaps detected. Focus on acquiring: "
+            + ", ".join(list(missing_skills)[:5])
+        )
 
 # -----------------------------
-# CHARTS
+# CHART
 # -----------------------------
-def bar_chart(overlap, missing):
+def skill_chart(matched, missing):
+
     fig, ax = plt.subplots()
-    ax.bar(["Matched", "Missing"], [len(overlap), len(missing)])
+
+    ax.bar(
+        ["Matched Skills", "Missing Skills"],
+        [len(matched), len(missing)]
+    )
+
     ax.set_title("Skill Coverage")
+
     return fig
 
 # -----------------------------
@@ -135,75 +288,169 @@ def bar_chart(overlap, missing):
 # -----------------------------
 if run and uploaded_file and job_description:
 
-    resume = extract_text(uploaded_file)
-
-    resume_emb = model.encode(resume)
-    job_emb = model.encode(job_description)
-
-    semantic_score = cosine_similarity([resume_emb], [job_emb])[0][0]
-
-    resume_words = set(tokenize(resume))
-    job_words = set(tokenize(job_description))
-
-    overlap = resume_words & job_words
-    missing = job_words - resume_words
-
-    skill_score = len(overlap) / (len(job_words) + 1)
+    resume_text = extract_text(uploaded_file)
 
     # -----------------------------
-    # FINAL REALISTIC ATS SCORE
+    # SEMANTIC MATCH
     # -----------------------------
-    final_score = (0.7 * semantic_score) + (0.3 * skill_score)
+    resume_embedding = model.encode(resume_text)
 
-    skill_categories = categorize(tokenize(resume))
+    job_embedding = model.encode(job_description)
+
+    semantic_score = cosine_similarity(
+        [resume_embedding],
+        [job_embedding]
+    )[0][0]
 
     # -----------------------------
-    # DASHBOARD HEADER
+    # SKILLS MATCH
+    # -----------------------------
+    resume_skills = extract_skills(resume_text)
+
+    job_skills = extract_skills(job_description)
+
+    matched_skills = set(resume_skills) & set(job_skills)
+
+    missing_skills = set(job_skills) - set(resume_skills)
+
+    if len(job_skills) > 0:
+
+        skill_score = len(matched_skills) / len(job_skills)
+
+    else:
+
+        skill_score = 0
+
+    # -----------------------------
+    # FINAL SCORE
+    # -----------------------------
+    final_score = (
+        semantic_score * 0.70 +
+        skill_score * 0.30
+    )
+
+    # -----------------------------
+    # CATEGORIES
+    # -----------------------------
+    skill_categories = categorize_skills(resume_skills)
+
+    # -----------------------------
+    # REPORT
     # -----------------------------
     st.markdown("## 📊 Executive ATS Report")
 
-    col1, col2, col3 = st.columns(3)
+    c1, c2, c3 = st.columns(3)
 
-    col1.metric("ATS Fit Score", f"{final_score*100:.1f}%")
-    col2.metric("Semantic Match", f"{semantic_score*100:.1f}%")
-    col3.metric("Skill Match", f"{skill_score*100:.1f}%")
+    c1.metric(
+        "ATS Fit Score",
+        f"{final_score*100:.1f}%"
+    )
+
+    c2.metric(
+        "Semantic Match",
+        f"{semantic_score*100:.1f}%"
+    )
+
+    c3.metric(
+        "Skill Match",
+        f"{skill_score*100:.1f}%"
+    )
 
     st.progress(float(final_score))
 
     # -----------------------------
-    # TABS (VERY IMPORTANT FOR PREMIUM FEEL)
+    # TABS
     # -----------------------------
-    tab1, tab2, tab3 = st.tabs(["📄 Overview", "📌 Skills", "🧠 Insights"])
+    tab1, tab2, tab3 = st.tabs([
+        "📄 Overview",
+        "📌 Skills",
+        "🧠 Insights"
+    ])
 
     # -----------------------------
-    # TAB 1 - OVERVIEW
+    # OVERVIEW
     # -----------------------------
     with tab1:
-        st.markdown("### AI Recommendation")
-        st.info(recruiter_feedback(final_score, missing))
 
-        st.markdown("### Skill Coverage")
-        st.pyplot(bar_chart(overlap, missing))
+        st.subheader("AI Recommendation")
+
+        st.info(
+            recruiter_feedback(
+                final_score,
+                missing_skills
+            )
+        )
+
+        st.subheader("Skill Coverage")
+
+        st.pyplot(
+            skill_chart(
+                matched_skills,
+                missing_skills
+            )
+        )
 
     # -----------------------------
-    # TAB 2 - SKILLS
+    # SKILLS
     # -----------------------------
     with tab2:
-        st.markdown("### Skill Categories Detected")
-        st.write(skill_categories)
 
-        st.markdown("### Missing Skills")
-        st.write(list(missing)[:25])
+        col1, col2 = st.columns(2)
+
+        with col1:
+
+            st.subheader("Matched Skills")
+
+            if matched_skills:
+
+                for skill in sorted(matched_skills):
+
+                    st.success(skill.title())
+
+            else:
+
+                st.warning("No matching skills detected")
+
+        with col2:
+
+            st.subheader("Missing Skills")
+
+            if missing_skills:
+
+                for skill in sorted(missing_skills):
+
+                    st.error(skill.title())
+
+            else:
+
+                st.success("No major skill gaps detected")
+
+        st.subheader("Skill Categories")
+
+        st.write(dict(skill_categories))
 
     # -----------------------------
-    # TAB 3 - INSIGHTS
+    # INSIGHTS
     # -----------------------------
     with tab3:
-        st.markdown("### Hiring Insight")
+
+        st.subheader("Hiring Insight")
+
         st.write(
-            "This analysis is based on semantic similarity + ATS keyword matching. "
-            "It simulates modern resume screening systems used in recruitment pipelines."
+            f"""
+            The resume achieved an ATS Fit Score of {final_score*100:.1f}%.
+
+            Semantic relevance to the job description is
+            {semantic_score*100:.1f}% while technical
+            skill coverage is {skill_score*100:.1f}%.
+
+            The strongest improvement opportunity is closing
+            the missing skill gaps identified above.
+            """
         )
 
 else:
-    st.info("Upload resume and job description to generate premium ATS report 🚀")
+
+    st.info(
+        "Upload a resume and paste a job description to generate the ATS report."
+    )
