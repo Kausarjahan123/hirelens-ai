@@ -1,129 +1,97 @@
-# HireLens AI - Resume Intelligence System
+AI PDF Chatbot (RAG + FAISS + Sentence Transformers)
+Overview
 
-HireLens AI is an AI-powered resume evaluation system that analyzes the match between a candidate’s resume and a job description using NLP techniques and transformer-based embeddings. It generates an ATS-style report with skill gap analysis and semantic matching.
+This project is an AI-powered document question answering system built using Retrieval-Augmented Generation (RAG). Users can upload a PDF document and ask natural language questions. The system retrieves the most relevant sections from the document using semantic search and returns context-based answers.
 
----
+The application is designed to function as a lightweight document intelligence assistant that can be used for study materials, research papers, notes, and technical documents.
 
-## Live Applications
+Key Features
+Upload and process PDF documents
+Automatic text extraction from multi-page PDFs
+Chunk-based document processing for efficient retrieval
+Semantic search using Sentence Transformers
+Fast similarity search using FAISS vector database
+Context-based answer generation from retrieved chunks
+Interactive web interface using Streamlit
+System Architecture
 
-HireLens AI (Premium Version)
-https://hirelens-ai-ba45tgkrgbprvscxvbk8hd.streamlit.app/
+The system follows a Retrieval-Augmented Generation pipeline:
 
-AI Resume Matcher (Base Version)
-https://ai-resume-matcher-ms57xeu8lvcn3f227u4vnh.streamlit.app/
-
----
-
-## Project Overview
-
-This project focuses on automating resume screening by combining:
-
-- Semantic similarity using transformer embeddings
-- Keyword-based ATS scoring logic
-- Skill extraction and gap analysis
-- Structured evaluation reports
-
-The system helps simulate how modern Applicant Tracking Systems evaluate candidates.
-
----
-
-## Key Features
-
-### Resume Analysis
-- PDF resume text extraction
-- Structured parsing of skills and content
-- Noise-free preprocessing
-
-### AI Matching Engine
-- SentenceTransformer embeddings
-- Cosine similarity scoring
-- Weighted hybrid scoring system
-
-### ATS Evaluation
-- Skill matching percentage
-- Missing skill identification
-- Final candidate fit score
-
-### Reporting System
-- Clean dashboard-style output
-- Structured evaluation summary
-- Recruiter-style recommendation logic
-
----
-
-## Tech Stack
-
-- Python
-- Streamlit
-- SentenceTransformers
-- Scikit-learn
-- NumPy
-- PDFplumber
-- Matplotlib
-
----
-
-## System Architecture
-
-Resume PDF
-→ Text Extraction
-→ NLP Preprocessing
-→ Transformer Embedding Model
-→ Job Description Embedding
-→ Cosine Similarity Calculation
-→ ATS Scoring Engine
-→ Streamlit Dashboard Output
-
----
-
-## Project Structure
-hirelens-ai/
+PDF Document Upload
+Text Extraction using PyPDF
+Text Chunking into smaller segments
+Embedding Generation using Sentence Transformers
+Vector Storage using FAISS
+Query Embedding and Similarity Search
+Retrieval of Top Matching Chunks
+Display of Contextual Answer
+Tech Stack
+Python
+Streamlit
+SentenceTransformers (all-MiniLM-L6-v2)
+FAISS (Facebook AI Similarity Search)
+PyPDF
+NumPy
+Project Structure
+rag-chatbot/
 │
-├── app.py
-├── requirements.txt
-├── README.md
-│
-└── notebooks/
-└── AI_Resume_Matcher.ipynb
+├── app.py                # Main Streamlit application
+├── requirements.txt      # Project dependencies
+├── README.md             # Project documentation
+└── sample_docs/          # Optional sample PDFs
+Installation
 
----
+Clone the repository and install dependencies:
 
-## How It Works
+git clone https://github.com/your-username/rag-chatbot.git
+cd rag-chatbot
+pip install -r requirements.txt
+Requirements
+streamlit
+sentence-transformers
+faiss-cpu
+numpy
+pypdf
+Running the Application
 
-1. Upload resume in PDF format
-2. Paste job description
-3. System extracts and processes text
-4. Embeddings are generated for both inputs
-5. Similarity score is calculated
-6. ATS scoring engine evaluates match quality
-7. Final report is displayed
+Start the Streamlit app using:
 
----
+streamlit run app.py
+How It Works
+Document Processing
 
-## Core Concepts Used
+The uploaded PDF is read page by page and converted into raw text. The text is then cleaned and split into smaller chunks to improve retrieval accuracy.
 
-- Natural Language Processing
-- Sentence Embeddings
-- Cosine Similarity
-- Feature Engineering
-- Rule-based scoring system
-- Hybrid ML evaluation approach
+Embedding Generation
 
----
+Each text chunk is converted into a high-dimensional vector using a pre-trained Sentence Transformer model.
 
-## Future Improvements
+Vector Search
 
-- GPT-based feedback system
-- Multi-resume ranking
-- User authentication system
-- Database integration
-- Resume PDF report generation
-- Advanced ATS simulation engine
+FAISS is used to store and search embeddings efficiently. When a user enters a query, it is also converted into a vector and matched against stored document embeddings.
 
----
+Response Generation
 
-## Author
+The most relevant chunks are retrieved and displayed as context-based answers.
 
-Kausar Jahan  
-M.Tech Computer Science  
-AI/ML Engineering Portfolio Project
+Use Cases
+Question answering over study notes
+Research paper summarization
+Document search assistant
+Personal knowledge base chatbot
+Resume or policy document analyzer
+Limitations
+Works best with text-based PDFs
+Performance depends on chunk quality
+No external knowledge beyond uploaded document
+No advanced LLM reasoning layer included
+Future Improvements
+Integration with large language models for better response generation
+Multi-document support
+Chat history memory
+Advanced chunking strategies (semantic splitting)
+Reranking model for improved retrieval accuracy
+Author
+
+Developed by: Your Name
+Domain: Machine Learning, NLP, Retrieval-Augmented Systems
