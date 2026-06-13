@@ -1,6 +1,7 @@
 import streamlit as st
 import pdfplumber
 import re
+import numpy as np
 from sentence_transformers import SentenceTransformer
 from sklearn.metrics.pairwise import cosine_similarity
 from collections import Counter
@@ -19,7 +20,6 @@ st.set_page_config(
 # -----------------------------
 st.markdown("""
 <style>
-
 .stApp {
     background-color: #f8f9fc;
     font-family: 'Segoe UI', sans-serif;
@@ -37,7 +37,6 @@ h1 {
     padding: 15px;
     box-shadow: 0px 2px 10px rgba(0,0,0,0.08);
 }
-
 </style>
 """, unsafe_allow_html=True)
 
@@ -54,60 +53,84 @@ model = load_model()
 # HEADER
 # -----------------------------
 st.title("💼 HireLens AI – ATS Intelligence Platform")
-st.write("Resume vs Job Description Deep Matching Engine")
+st.write("Resume vs Job Description Analysis")
 
 # -----------------------------
 # INPUTS
 # -----------------------------
 uploaded_file = st.file_uploader("Upload Resume (PDF)", type=["pdf"])
 job_description = st.text_area("Paste Job Description", height=250)
-
-run = st.button("Run Analysis")
+run = st.button("Run ATS Analysis")
 
 # -----------------------------
 # PDF TEXT EXTRACTION
 # -----------------------------
-def extract_text(pdf_file):
+def extract_text(pdf):
     text = ""
-    with pdfplumber.open(pdf_file) as pdf:
-        for page in pdf.pages:
-            page_text = page.extract_text()
-            if page_text:
-                text += page_text + " "
+    with pdfplumber.open(pdf) as pdf_file:
+        for page in pdf_file.pages:
+            text += page.extract_text() or ""
     return text.lower()
 
 # -----------------------------
-# SKILLS DB
+# CLEAN TOKENIZATION
+# -----------------------------
+def tokenize(text):
+    return re.findall(r'\b[a-zA-Z][a-zA-Z\-]{2,}\b', text.lower())
+
+# -----------------------------
+# SKILLS DATABASE
 # -----------------------------
 SKILLS_DB = [
-    "python","java","sql","javascript",
-    "machine learning","deep learning",
-    "pytorch","tensorflow","scikit-learn",
-    "nlp","llm","transformers",
-    "aws","docker","kubernetes",
-    "mlflow","flask","fastapi"
+    "python","java","c++","javascript","typescript","sql",
+    "pandas","numpy","matplotlib","seaborn","scipy",
+    "machine learning","deep learning","neural networks",
+    "tensorflow","keras","pytorch","scikit-learn",
+    "nlp","transformers","langchain","rag","llm","faiss",
+    "aws","azure","gcp",
+    "docker","kubernetes","flask","fastapi","streamlit",
+    "mysql","postgresql","mongodb",
+    "mlflow","airflow"
 ]
 
 # -----------------------------
-# SKILL EXTRACTION
+# SKILL EXTRACTION (FIXED)
 # -----------------------------
 def extract_skills(text):
-    found = []
+    text = text.lower()
+    found = set()
+
     for skill in SKILLS_DB:
         if skill in text:
-            found.append(skill)
-    return list(set(found))
+            found.add(skill)
+
+    return found
 
 # -----------------------------
-# FEEDBACK ENGINE
+# JOB KEYWORDS EXTRACTION (IMPORTANT FIX)
 # -----------------------------
-def feedback(score, missing):
-    if score > 0.8:
-        return "Strong match. Candidate is highly aligned."
-    elif score > 0.6:
-        return "Moderate match. Improve: " + ", ".join(list(missing)[:5])
+def extract_job_keywords(text):
+    words = tokenize(text)
+
+    stop_words = {
+        "and","the","for","with","this","that","you","are",
+        "was","were","will","from","into","using","about","your"
+    }
+
+    return set([w for w in words if w not in stop_words])
+
+# -----------------------------
+# RECRUITER FEEDBACK
+# -----------------------------
+def recruiter_feedback(score, missing):
+    missing = list(missing)[:5]
+
+    if score >= 0.80:
+        return "Strong match. Candidate is interview-ready."
+    elif score >= 0.60:
+        return "Good match. Improve: " + ", ".join(missing)
     else:
-        return "Weak match. Critical gaps: " + ", ".join(list(missing)[:5])
+        return "Weak match. Critical gaps: " + ", ".join(missing)
 
 # -----------------------------
 # MAIN
@@ -117,80 +140,65 @@ if run and uploaded_file and job_description:
     resume_text = extract_text(uploaded_file)
 
     # embeddings
-    resume_vec = model.encode(resume_text)
-    job_vec = model.encode(job_description)
+    resume_emb = model.encode(resume_text)
+    job_emb = model.encode(job_description)
 
-    semantic_score = cosine_similarity([resume_vec], [job_vec])[0][0]
-
-    # skills
-    resume_skills = extract_skills(resume_text)
-    job_skills = extract_skills(job_description)
-
-    matched = set(resume_skills) & set(job_skills)
-    missing = set(job_skills) - set(resume_skills)
-
-    skill_score = len(matched) / (len(job_skills) + 1)
-
-    final_score = (0.7 * semantic_score) + (0.3 * skill_score)
+    semantic_score = cosine_similarity(
+        [resume_emb], [job_emb]
+    )[0][0]
 
     # -----------------------------
-    # OUTPUT DASHBOARD
+    # SKILLS LOGIC (FIXED CORE)
+    # -----------------------------
+    resume_skills = extract_skills(resume_text)
+    job_skills_db = extract_skills(job_description)
+    job_keywords = extract_job_keywords(job_description)
+
+    job_skills = job_skills_db.union(job_keywords)
+
+    matched_skills = resume_skills.intersection(job_skills)
+    missing_skills = job_skills - resume_skills
+
+    skill_score = (
+        len(matched_skills) / len(job_skills)
+        if len(job_skills) > 0 else 0
+    )
+
+    final_score = (semantic_score * 0.7) + (skill_score * 0.3)
+
+    # -----------------------------
+    # UI OUTPUT
     # -----------------------------
     st.markdown("## 📊 ATS Report")
 
-    c1, c2, c3 = st.columns(3)
+    col1, col2, col3 = st.columns(3)
 
-    c1.metric("ATS Score", f"{final_score*100:.1f}%")
-    c2.metric("Semantic Match", f"{semantic_score*100:.1f}%")
-    c3.metric("Skill Match", f"{skill_score*100:.1f}%")
+    col1.metric("ATS Score", f"{final_score*100:.1f}%")
+    col2.metric("Semantic Match", f"{semantic_score*100:.1f}%")
+    col3.metric("Skill Match", f"{skill_score*100:.1f}%")
 
     st.progress(float(final_score))
 
     # -----------------------------
-    # TABS
+    # RESULT
     # -----------------------------
-    tab1, tab2, tab3 = st.tabs(["Overview", "Skills", "Insights"])
-
-    # -----------------------------
-    # TAB 1
-    # -----------------------------
-    with tab1:
-        st.subheader("AI Feedback")
-        st.info(feedback(final_score, missing))
-
-        st.subheader("Coverage Summary")
-        st.write(f"Matched: {len(matched)}")
-        st.write(f"Missing: {len(missing)}")
-        st.write(f"Job Skills Found: {len(job_skills)}")
-
-        st.progress(float(skill_score))
+    st.subheader("AI Recommendation")
+    st.info(recruiter_feedback(final_score, missing_skills))
 
     # -----------------------------
-    # TAB 2
+    # SKILLS
     # -----------------------------
-    with tab2:
-        st.subheader("Matched Skills")
-        st.write(list(matched) if matched else "None")
+    st.subheader("Matched Skills")
+    if matched_skills:
+        st.write(", ".join(sorted(matched_skills)))
+    else:
+        st.warning("No matched skills found")
 
-        st.subheader("Missing Skills")
-        st.write(list(missing) if missing else "None")
-
-    # -----------------------------
-    # TAB 3
-    # -----------------------------
-    with tab3:
-        st.subheader("Insight")
-        st.write(
-            f"""
-            ATS Score: {final_score*100:.1f}%
-
-            Semantic Match: {semantic_score*100:.1f}%
-
-            Skill Coverage: {skill_score*100:.1f}%
-
-            System uses embeddings + keyword matching.
-            """
-        )
+    st.subheader("Missing Skills")
+    if missing_skills:
+        st.write(", ".join(list(missing_skills)[:20]))
+    else:
+        st.success("No major gaps detected")
 
 else:
-    st.info("Upload resume and paste job description to start analysis.")
+    st.info("Upload resume and paste job description to start analysis")
